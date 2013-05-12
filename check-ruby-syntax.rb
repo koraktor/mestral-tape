@@ -7,11 +7,15 @@ require 'tmpdir'
 
 puts 'Checking syntax of modified Ruby files...'
 
-ruby_files = git('diff-index --cached --name-only -z HEAD').split("\0").
-  select { |file| File.extname(file) == '.rb' || File.extname(file) == '.rbw' }
+diff_index = git('diff-index --cached --name-status -z HEAD').split("\0")
+file_status = Hash[*diff_index.reverse]
+ruby_files = Hash[file_status.select do |file, status|
+  %w{A M}.include?(status) &&
+  %w{.rb .rbw}.include?(File.extname(file))
+end]
 
 Dir.mktmpdir do |tmpdir|
-  ruby_files.each do |file|
+  ruby_files.keys.each do |file|
     git("checkout-index --prefix=#{tmpdir}/ -z #{file}")
     $stdout << " - Checking #{file}: "
     temp_file = File.expand_path file, tmpdir
